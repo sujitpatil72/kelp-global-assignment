@@ -1,7 +1,20 @@
 import fs from "fs";
 import path from "path";
+import User from "../models/user";
 
-function csvToJson(csv: string): any[] | { error: string } {
+type User = {
+  name: { firstName: string; lastName: string };
+  age: string;
+  address: {
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+  };
+  gender: string;
+};
+
+function csvToJson(csv: string): User[] {
   const lines = csv.split("\n");
   const headers = lines[0].split(",");
   const result = [];
@@ -29,7 +42,7 @@ function csvToJson(csv: string): any[] | { error: string } {
         !obj.name.lastName ||
         obj.age === undefined
       ) {
-        return { error: "Missing mandatory fields" };
+        throw new Error("Missing mandatory fields");
       }
       result.push(obj);
     } else {
@@ -56,13 +69,18 @@ export const convertCSVToJSON = (req: any, resp: any) => {
       return;
     }
 
-    fs.readFile(fullPath, "utf8", (err, data) => {
+    fs.readFile(fullPath, "utf8", async (err, data) => {
       if (err) {
         console.error("Error reading the CSV file:", err);
         return;
       }
 
-      console.log(csvToJson(data));
+      const userData = csvToJson(data);
+
+      const promises = userData.map((u) => User.create(u));
+
+      await promises;
+
       return resp.json({
         success: true,
         message: "Successfully converted csv to json",
